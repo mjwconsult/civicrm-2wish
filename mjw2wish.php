@@ -120,16 +120,34 @@ function mjw2wish_civicrm_entityTypes(&$entityTypes) {
   _mjw2wish_civix_civicrm_entityTypes($entityTypes);
 }
 
+function mjw2wish_civicrm_contact_get_displayname(&$display_name, $contactId, $dao = NULL) {
+  $displayNameCustomField = \Civi::settings()->get('mjw2wish_displaynamecustomfield');
+  if (!empty($displayNameCustomField)) {
+    $contact = \Civi\Api4\Contact::get(FALSE)
+      ->addSelect($displayNameCustomField)
+      ->addWhere('id', '=', $contactId)
+      ->execute()
+      ->first();
+    if (!empty($contact[$displayNameCustomField])) {
+      $display_name = $display_name . ' - ' . $contact[$displayNameCustomField];
+    }
+  }
+
+  if (empty($dao)) {
+    $dao = new CRM_Contact_DAO_Contact();
+    $dao->id = $contactId;
+    $dao->find(TRUE);
+  }
+  if ($dao->is_deceased) {
+    $display_name .= ' (' . E::ts('deceased') . ')';
+  }
+  return $display_name;
+}
+
 function mjw2wish_patchwork_apply_patch($original, &$code) {
-  switch ($original) {
-    case '/CRM/Contact/Page/View/Relationship.php':
-      _mjwwish_applypatches($original, $code);
-      break;
-
-    case '/CRM/Contact/BAO/Relationship.php':
-      _mjwwish_applypatches($original, $code);
-      break;
-
+  $filesToPatch = array_keys(_mjw2wish_patchdata());
+  if (in_array($original, $filesToPatch)) {
+    _mjwwish_applypatches($original, $code);
   }
 }
 
@@ -172,6 +190,18 @@ function _mjwwish_applypatches($file, &$code) {
       $new_code = array_merge($new_code, $code);
       $code = $new_code;
     }
+    elseif (array_key_exists('removeAfter', $patch)) {
+      $new_code = [];
+      while ($code && $code[0] != $patch['removeAfter']) {
+        $new_code[] = array_shift($code);
+      }
+      for ($count = 0; $count < $patch['lines']; $count++) {
+        // Remove lines
+        array_shift($code);
+      }
+      $new_code = array_merge($new_code, $code);
+      $code = $new_code;
+    }
     Civi::log()->notice("Patch successful on {$file}", []);
   }
   $code = implode("\n", $new_code);
@@ -179,46 +209,33 @@ function _mjwwish_applypatches($file, &$code) {
 
 function _mjw2wish_patchdata() {
   $data = [
+    '/CRM/Contact/Form/Contact.php' => [
+      [
+        'removeAfter' => <<<'CODE'
+        $displayName = CRM_Contact_BAO_Contact::displayName($this->_contactId);
+CODE,
+        'lines' => 3
+      ],
+    ],
+    '/CRM/Contact/Page/View.php' => [
+      [
+        'removeAfter' => <<<'CODE'
+  private static $columnHeaders;
+CODE,
+        'lines' => 3
+      ],
+    ],
     '/CRM/Contact/Page/View/Relationship.php' => [
       [
         'insertAfter' => <<<'CODE'
     $relationship->id = $viewRelationship[$this->getEntityId()]['id'];
 CODE,
         'code' => <<<'CODE'
-    $viewRelationship[$this->getEntityId()]['name'] = CRM_Contact_BAO_Relationship::formatContactName([
-      'name' => $viewRelationship[$this->getEntityId()]['name'],
-      'is_deceased' => \Civi\Api4\Contact::get(FALSE)
-        ->addWhere('id', '=', $viewRelationship[$this->getEntityId()]['cid'])
-        ->addSelect('is_deceased')
-        ->execute()
-        ->first()['is_deceased'],
-    ]);
+    mjw2wish_civicrm_contact_get_displayname($viewRelationship[$this->getEntityId()]['name'], $viewRelationship[$this->getEntityId()]['cid']);
 CODE,
       ],
     ],
     '/CRM/Contact/BAO/Relationship.php' => [
-      [
-        'insertAfter' => <<<'CODE'
-  private static $columnHeaders;
-CODE,
-        'code' => <<<'CODE'
-  /**
-   * Format the contact name to show on the relationship
-   * Currently adds "deceased" like on contact summary if applicable.
-   *
-   * @param array $contact
-   *
-   * @return string
-   */
-  public static function formatContactName(array $contact): string {
-    $name = $contact['name'];
-    if (!empty($contact['is_deceased'])) {
-      $name .= ' <span class="crm-contact-deceased">(' . ts('deceased') . ')</span>';
-    }
-    return $name;
-  }
-CODE,
-      ],
       [
         'insertAfter' => <<<'CODE'
       $displayName = CRM_Contact_BAO_Contact::displayName($params['contact_id']);
@@ -237,10 +254,7 @@ CODE,
         $relationship['sort_name'] = $icon . ' ' . CRM_Utils_System::href(
 CODE,
         'code' => <<<'CODE'
-        $values['name'] = self::formatContactName([
-          'name' => $values['name'],
-          'is_deceased' => $contactIsDeceased[$values['cid']]['is_deceased'],
-        ]);
+        mjw2wish_civicrm_contact_get_displayname($values['name'], $values['cid']);
 CODE,
       ],
     ],
