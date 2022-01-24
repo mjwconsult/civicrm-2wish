@@ -147,11 +147,11 @@ function mjw2wish_civicrm_contact_get_displayname(&$display_name, $contactId, $d
 function mjw2wish_patchwork_apply_patch($original, &$code) {
   $filesToPatch = array_keys(_mjw2wish_patchdata());
   if (in_array($original, $filesToPatch)) {
-    _mjwwish_applypatches($original, $code);
+    _mjw2wish_applypatches($original, $code);
   }
 }
 
-function _mjwwish_applypatches($file, &$code) {
+function _mjw2wish_applypatches($file, &$code) {
   $patchData = _mjw2wish_patchdata();
   if (!isset($patchData[$file])) {
     \Civi::log()->debug('nothing to patch for ' . $file);
