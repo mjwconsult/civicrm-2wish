@@ -21,7 +21,8 @@ The same rules are applied for the relationship tab and "view relationship" even
 
 ## Configuration
 
-You need to set the `mjw2wish_displaynamecustomfield` setting using the API4 Explorer and Setting.Set.
+You need to set the `mjw2wish_displaynamecustomfield`.
+Navigate to Administer->Customize data and screens->MJW 2wish customisations to choose the custom field.
 Find the custom field name by using API4 Explorer Contact.Get and look for it in "Select".
 
 Example: `constituent_information.Marital_Status`

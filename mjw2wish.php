@@ -120,6 +120,21 @@ function mjw2wish_civicrm_entityTypes(&$entityTypes) {
   _mjw2wish_civix_civicrm_entityTypes($entityTypes);
 }
 
+/**
+ * Implements hook_civicrm_navigationMenu().
+ */
+function mjw2wish_civicrm_navigationMenu(&$menu) {
+  _mjw2wish_civix_insert_navigation_menu($menu, 'Administer/Customize Data and Screens', [
+    'label' => E::ts('MJW 2wish customisations'),
+    'name' => 'mjw2wish_settings',
+    'url' => 'civicrm/admin/setting/mjw2wish',
+    'permission' => 'administer CiviCRM',
+    'operator' => 'OR',
+    'separator' => 0,
+  ]);
+  _mjw2wish_civix_navigationMenu($menu);
+}
+
 function mjw2wish_civicrm_contact_get_displayname(&$display_name, $contactId, $dao = NULL) {
   $displayNameCustomField = \Civi::settings()->get('mjw2wish_displaynamecustomfield');
   if (!empty($displayNameCustomField)) {
@@ -195,8 +210,10 @@ function _mjw2wish_applypatches($file, &$code) {
       while ($code && $code[0] != $patch['removeAfter']) {
         $new_code[] = array_shift($code);
       }
+      // Keep the line we matched
+      $new_code[] = array_shift($code);
       for ($count = 0; $count < $patch['lines']; $count++) {
-        // Remove lines
+        // Remove lines after match for requested count
         array_shift($code);
       }
       $new_code = array_merge($new_code, $code);
@@ -220,7 +237,7 @@ CODE,
     '/CRM/Contact/Page/View.php' => [
       [
         'removeAfter' => <<<'CODE'
-  private static $columnHeaders;
+    $title = "{$contactImage} {$displayName}";
 CODE,
         'lines' => 3
       ],

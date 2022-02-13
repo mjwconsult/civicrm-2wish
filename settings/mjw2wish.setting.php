@@ -21,6 +21,13 @@ return [
     'is_contact' => 0,
     'title' => E::ts('Name of custom field to display as "reference" when showing the contact name'),
     'description' => E::ts('This must be in API4 format. Find by using API4 explorer and doing a Contact.Get with Select=custom.*'),
-    'html_attributes' => [],
+    'html_attributes' => [
+      'size' => 80,
+    ],
+    'settings_pages' => [
+      'mjw2wish' => [
+        'weight' => 10,
+      ]
+    ],
   ]
 ];
